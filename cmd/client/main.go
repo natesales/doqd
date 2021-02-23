@@ -38,7 +38,7 @@ func main() {
 	// Connect to DoQ server
 	doqClient, err := client.New(*server, *insecureSkipVerify)
 	if err != nil {
-		log.Fatalf("client create: %s\n", err)
+		log.Fatalf("client create: %v\n", err)
 	}
 	defer doqClient.Close() // Cleanup the QUIC session once we're done with it
 
