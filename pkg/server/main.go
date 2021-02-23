@@ -9,20 +9,23 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 )
 
-// Config constants
-var (
-	QuicProtos         = []string{"doq-i02", "doq-i00", "dq", "doq"}
+// Only implementations of the final, published RFC can identify
+// themselves as "doq". Until such an RFC exists, implementations MUST
+// NOT identify themselves using this string. Implementations of draft
+// versions of the protocol MUST add the string "-" and the corresponding
+// draft number to the identifier. For example, draft-ietf-dprive-dnsoquic-00
+// is identified using the string "doq-i00".
+var QuicProtos = []string{"doq-i02"}
+
+const (
+	DoqNoError         = 0x00 // No error. This is used when the connection or stream needs to be closed, but there is no error to signal.
+	DoqInternalError   = 0x01 // The DoQ implementation encountered an internal error and is incapable of pursuing the transaction or the connection
 	QuicMaxIdleTimeout = 5 * time.Minute
 	DnsMinPacketSize   = 12 + 5
-)
-
-// Protocol constants
-const (
-	DoqNoError       = 0x00 // No error. This is used when the connection or stream needs to be closed, but there is no error to signal.
-	DoqInternalError = 0x01 // The DoQ implementation encountered an internal error and is incapable of pursuing the transaction or the connection
 )
 
 // Server stores a DoQ server
@@ -74,6 +77,9 @@ func (s Server) Listen() error {
 
 // handleClient handles a DoQ quic.Session
 func handleClient(session quic.Session, backend string) error {
+	// QUIC stream close error
+	var streamCloseErr quic.ErrorCode
+
 	for {
 		stream, err := session.AcceptStream(context.Background())
 		if err != nil { // Close the session if we aren't able to accept the incoming stream
@@ -90,17 +96,40 @@ func handleClient(session quic.Session, backend string) error {
 			// Read the DNS message
 			data, err := ioutil.ReadAll(stream)
 			if err != nil {
+				streamCloseErr = DoqInternalError
 				streamErrChannel <- errors.New("read query: " + err.Error())
 				return
 			}
 			if len(data) < DnsMinPacketSize {
+				streamCloseErr = DoqInternalError
 				streamErrChannel <- errors.New("dns packet too small")
 				return
+			}
+
+			// Unpack the DNS message
+			var dnsMsg dns.Msg
+			err = dnsMsg.Unpack(data)
+			if err != nil {
+				streamCloseErr = DoqInternalError
+				streamErrChannel <- errors.New("dns message unpack: " + err.Error())
+				return
+			}
+
+			// If any message sent on a DoQ connection contains an edns-tcp-keepalive EDNS(0) Option,
+			// this is a fatal error and the recipient of the defective message MUST forcibly abort the connection immediately.
+			opt := dnsMsg.IsEdns0()
+			for _, option := range opt.Option {
+				if option.Option() == dns.EDNS0TCPKEEPALIVE {
+					streamCloseErr = DoqInternalError
+					streamErrChannel <- errors.New("client sent EDNS0_TCP_KEEPALIVE")
+					return
+				}
 			}
 
 			// Connect to the DNS backend
 			conn, err := net.Dial("udp", backend)
 			if err != nil {
+				streamCloseErr = DoqInternalError
 				streamErrChannel <- errors.New("backend connect: " + err.Error())
 				return
 			}
@@ -108,6 +137,7 @@ func handleClient(session quic.Session, backend string) error {
 			// Send query to DNS backend
 			_, err = conn.Write(data)
 			if err != nil {
+				streamCloseErr = DoqInternalError
 				streamErrChannel <- errors.New("backend query write: " + err.Error())
 				return
 			}
@@ -116,6 +146,7 @@ func handleClient(session quic.Session, backend string) error {
 			buf := make([]byte, 4096)
 			size, err := conn.Read(buf)
 			if err != nil {
+				streamCloseErr = DoqInternalError
 				streamErrChannel <- errors.New("backend query read: " + err.Error())
 				return
 			}
@@ -124,9 +155,13 @@ func handleClient(session quic.Session, backend string) error {
 			// Write the response to the QUIC stream
 			_, err = stream.Write(buf)
 			if err != nil {
+				streamCloseErr = DoqInternalError
 				streamErrChannel <- errors.New("quic stream write: " + err.Error())
 				return
 			}
+
+			// No error (success)
+			streamCloseErr = DoqNoError
 		}()
 
 		// Retrieve the stream error
@@ -137,8 +172,9 @@ func handleClient(session quic.Session, backend string) error {
 		}
 	}
 
-	// Close the QUIC session
-	_ = session.CloseWithError(DoqNoError, "") // Ignore error - if we're already closing the session it doesn't matter if it errors or not
+	// Close the QUIC session, ignoring the close error
+	// if we're already closing the session it doesn't matter if it errors or not
+	_ = session.CloseWithError(streamCloseErr, "")
 
 	return nil // nil error
 }
