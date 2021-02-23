@@ -19,11 +19,16 @@ var (
 	tlsKey      = flag.String("tlsKey", "key.pem", "TLS key file")
 	tlsCompat   = flag.Bool("tlsCompat", false, "enable TLS compatibility mode")
 	maxProcs    = flag.Int("maxProcs", 1, "GOMAXPROCS")
+	verbose     = flag.Bool("verbose", false, "enable debug logging")
 	showVersion = flag.Bool("version", false, "show version")
 )
 
 func main() {
 	flag.Parse()
+
+	if *verbose {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	if *showVersion {
 		log.Printf("doq https://github.com/natesales/doq version %s\n", version)

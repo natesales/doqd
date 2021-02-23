@@ -39,6 +39,7 @@ func New(addr string, cert tls.Certificate, backend string, compat bool) (Server
 	}
 
 	// Create the QUIC listener
+	log.Debugln("creating quic listener")
 	listener, err := quic.ListenAddr(addr, &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		NextProtos:   tlsProtos,
@@ -55,17 +56,20 @@ func New(addr string, cert tls.Certificate, backend string, compat bool) (Server
 
 // Close closes the server QUIC listener
 func (s Server) Close() error {
+	log.Debugln("closing quic listener")
 	return s.Listener.Close()
 }
 
 // Listen starts the QUIC listener
 func (s Server) Listen() error {
 	// Accept QUIC connections
+	log.Debugln("accepting quic connections")
 	for {
 		session, err := s.Listener.Accept(context.Background())
 		if err != nil {
 			return errors.New("quic listen accept: " + err.Error())
 		}
+		log.Debugf("accepted quic connection from %s\n", session.RemoteAddr())
 
 		// Handle the client connection in a new goroutine
 		go func() {
@@ -88,6 +92,7 @@ func handleClient(session quic.Session, backend string) error {
 			_ = session.CloseWithError(doqInternalError, "")
 			return nil
 		}
+		log.Debugf("accepted client stream")
 
 		streamErrChannel := make(chan error)
 
@@ -169,7 +174,7 @@ func handleClient(session quic.Session, backend string) error {
 		// Retrieve the stream error
 		err = <-streamErrChannel
 		if err != nil {
-			log.Warn(err)
+			log.Debug(err)
 			break // Close the connection
 		}
 	}
@@ -177,6 +182,7 @@ func handleClient(session quic.Session, backend string) error {
 	// Close the QUIC session, ignoring the close error
 	// if we're already closing the session it doesn't matter if it errors or not
 	_ = session.CloseWithError(streamCloseErr, "")
+	log.Debugf("closed session with %d\n", streamCloseErr)
 
 	return nil // nil error
 }
