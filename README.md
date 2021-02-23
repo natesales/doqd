@@ -11,7 +11,7 @@ DNS over QUIC implementation in Go
 
 The `pkg` directory contains a DoQ client and server implementation in conformance
 with ([draft-ietf-dprive-dnsoquic-02](https://datatracker.ietf.org/doc/draft-ietf-dprive-dnsoquic/?include_text=1)), as
-well as a UDP-DoQ proxy (`cmd/daemon`), and a CLI client (`cmd/client`).
+well as a UDP-DoQ proxy (`cmd/server`), and a CLI client (`cmd/client`).
 
 ### Interoperability
 
