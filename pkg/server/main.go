@@ -6,9 +6,17 @@ import (
 	"errors"
 	"io/ioutil"
 	"net"
+	"time"
 
 	"github.com/lucas-clemente/quic-go"
 	log "github.com/sirupsen/logrus"
+)
+
+// Config constants
+var (
+	QuicProtos         = []string{"doq-i02", "doq-i00", "dq", "doq"}
+	QuicMaxIdleTimeout = 5 * time.Minute
+	DnsMinPacketSize   = 12 + 5
 )
 
 // Server stores a DoQ server
@@ -22,8 +30,8 @@ func New(addr string, cert tls.Certificate, backend string) (Server, error) {
 	// Create the QUIC listener
 	listener, err := quic.ListenAddr(addr, &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		NextProtos:   []string{"dq"},
-	}, nil)
+		NextProtos:   QuicProtos,
+	}, &quic.Config{MaxIdleTimeout: QuicMaxIdleTimeout})
 	if err != nil {
 		return Server{}, errors.New("quic listen: " + err.Error())
 	}
@@ -62,8 +70,9 @@ func (s Server) Listen() error {
 func handleClient(session quic.Session, backend string) error {
 	for {
 		stream, err := session.AcceptStream(context.Background())
-		if err != nil {
-			return err
+		if err != nil { // Close the session if we aren't able to accept the incoming stream
+			_ = session.CloseWithError(0, "")
+			return nil
 		}
 
 		streamErrChannel := make(chan error)
@@ -76,6 +85,10 @@ func handleClient(session quic.Session, backend string) error {
 			data, err := ioutil.ReadAll(stream)
 			if err != nil {
 				streamErrChannel <- errors.New("read query: " + err.Error())
+				return
+			}
+			if len(data) < DnsMinPacketSize {
+				streamErrChannel <- errors.New("dns packet too small")
 				return
 			}
 
