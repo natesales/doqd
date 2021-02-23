@@ -8,6 +8,8 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/natesales/doq/internal/doqproto"
 )
 
 // Client stores a DoQ client
@@ -16,11 +18,19 @@ type Client struct {
 }
 
 // New constructs a new client
-func New(server string, tlsInsecureSkipVerify bool) (Client, error) {
+func New(server string, tlsInsecureSkipVerify bool, compat bool) (Client, error) {
+	// Select TLS protocols for DoQ
+	var tlsProtos []string
+	if compat {
+		tlsProtos = doqproto.QuicProtosCompat
+	} else {
+		tlsProtos = doqproto.QuicProtos
+	}
+
 	// Connect to DoQ server
 	session, err := quic.DialAddr(server, &tls.Config{
 		InsecureSkipVerify: tlsInsecureSkipVerify,
-		NextProtos:         []string{"doq-i02"},
+		NextProtos:         tlsProtos,
 	}, nil)
 	if err != nil {
 		log.Fatal("failed to connect to the server: %v\n", err)
