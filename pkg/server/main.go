@@ -19,6 +19,12 @@ var (
 	DnsMinPacketSize   = 12 + 5
 )
 
+// Protocol constants
+const (
+	DoqNoError       = 0x00 // No error. This is used when the connection or stream needs to be closed, but there is no error to signal.
+	DoqInternalError = 0x01 // The DoQ implementation encountered an internal error and is incapable of pursuing the transaction or the connection
+)
+
 // Server stores a DoQ server
 type Server struct {
 	Backend  string
@@ -71,7 +77,7 @@ func handleClient(session quic.Session, backend string) error {
 	for {
 		stream, err := session.AcceptStream(context.Background())
 		if err != nil { // Close the session if we aren't able to accept the incoming stream
-			_ = session.CloseWithError(0, "")
+			_ = session.CloseWithError(DoqInternalError, "")
 			return nil
 		}
 
@@ -132,7 +138,7 @@ func handleClient(session quic.Session, backend string) error {
 	}
 
 	// Close the QUIC session
-	_ = session.CloseWithError(0, "") // Ignore error - if we're already closing the session it doesn't matter if it errors or not
+	_ = session.CloseWithError(DoqNoError, "") // Ignore error - if we're already closing the session it doesn't matter if it errors or not
 
 	return nil // nil error
 }
