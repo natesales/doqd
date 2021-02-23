@@ -20,7 +20,7 @@ func New(server string, tlsInsecureSkipVerify bool) (Client, error) {
 	// Connect to DoQ server
 	session, err := quic.DialAddr(server, &tls.Config{
 		InsecureSkipVerify: tlsInsecureSkipVerify,
-		NextProtos:         []string{"dq"},
+		NextProtos:         []string{"doq-i02"},
 	}, nil)
 	if err != nil {
 		log.Fatal("failed to connect to the server: %v\n", err)
