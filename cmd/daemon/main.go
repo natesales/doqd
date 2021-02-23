@@ -17,6 +17,7 @@ var (
 	backend     = flag.String("backend", "[::1]:53", "address of backend (UDP) DNS server")
 	tlsCert     = flag.String("tlsCert", "cert.pem", "TLS certificate file")
 	tlsKey      = flag.String("tlsKey", "key.pem", "TLS key file")
+	tlsCompat   = flag.Bool("tlsCompat", false, "enable TLS compatibility mode")
 	maxProcs    = flag.Int("maxProcs", 1, "GOMAXPROCS")
 	showVersion = flag.Bool("version", false, "show version")
 )
@@ -40,7 +41,7 @@ func main() {
 
 	// Create the QUIC listener
 	log.Infof("starting quic listener on %s\n", *listenAddr)
-	doqServer, err := server.New(*listenAddr, cert, *backend)
+	doqServer, err := server.New(*listenAddr, cert, *backend, *tlsCompat)
 	if err != nil {
 		log.Fatal(err)
 	}
