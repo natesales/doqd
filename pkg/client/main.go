@@ -22,9 +22,9 @@ func New(server string, tlsInsecureSkipVerify bool, compat bool) (Client, error)
 	// Select TLS protocols for DoQ
 	var tlsProtos []string
 	if compat {
-		tlsProtos = doqproto.QuicProtosCompat
+		tlsProtos = doqproto.TlsProtosCompat
 	} else {
-		tlsProtos = doqproto.QuicProtos
+		tlsProtos = doqproto.TlsProtos
 	}
 
 	// Connect to DoQ server

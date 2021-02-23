@@ -33,9 +33,9 @@ func New(addr string, cert tls.Certificate, backend string, compat bool) (Server
 	// Select TLS protocols for DoQ
 	var tlsProtos []string
 	if compat {
-		tlsProtos = doqproto.QuicProtosCompat
+		tlsProtos = doqproto.TlsProtosCompat
 	} else {
-		tlsProtos = doqproto.QuicProtos
+		tlsProtos = doqproto.TlsProtos
 	}
 
 	// Create the QUIC listener
