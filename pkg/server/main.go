@@ -56,7 +56,7 @@ func New(listenAddr string, cert tls.Certificate, backend string, tlsCompat bool
 		NextProtos:   tlsProtos,
 	}, &quic.Config{MaxIdleTimeout: 5 * time.Second})
 	if err != nil {
-		return Server{}, errors.New("could not start QUIC listener")
+		return Server{}, errors.New("could not start QUIC listener: " + err.Error())
 	}
 
 	return Server{Listener: listener, Backend: backend}, nil // nil error
