@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/miekg/dns"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
+
+	"github.com/miekg/dns"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/natesales/doq/pkg/client"
 )
@@ -24,14 +25,6 @@ func main() {
 	if *verbose {
 		log.SetLevel(log.DebugLevel)
 	}
-
-	// Create a new DoQ client
-	doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
-	if err != nil {
-		log.Fatal(doqClient)
-		os.Exit(1)
-	}
-	defer doqClient.Close()
 
 	// Create the UDP DNS listener
 	log.Debug("creating UDP listener")
@@ -58,12 +51,22 @@ func main() {
 			log.Warn(err)
 		}
 
+		// Create a new DoQ client
+		doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
+		if err != nil {
+			log.Fatal(doqClient)
+			os.Exit(1)
+		}
+
 		log.Debugln("sending DoQ query")
 		resp, err := doqClient.SendQuery(msgIn)
 		if err != nil {
 			log.Fatal(err)
 			os.Exit(1)
 		}
+
+		log.Debugln("closing doq quic stream")
+		doqClient.Close()
 
 		packed, err := resp.Pack()
 		pc.WriteTo(packed, addr)
