@@ -11,4 +11,10 @@ package doqproto
 var TlsProtos = []string{"doq-i02"}
 
 // TlsProtosCompat stores alternative TLS protocols for experimental interoperability
-var TlsProtosCompat = []string{"doq-i02", "doq", "doq"}
+var TlsProtosCompat = []string{"doq-i02", "doq-i01", "doq-i00", "doq", "dq"}
+
+// Errors
+const (
+	DoqNoError       = 0x00 // No error. This is used when the connection or stream needs to be closed, but there is no error to signal.
+	DoqInternalError = 0x01 // The DoQ implementation encountered an internal error and is incapable of pursuing the transaction or the connection
+)
