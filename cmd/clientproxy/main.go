@@ -69,6 +69,9 @@ func main() {
 		doqClient.Close()
 
 		packed, err := resp.Pack()
+		if err != nil {
+			log.Fatal(err)
+		}
 		pc.WriteTo(packed, addr)
 		log.Debug("finished writing")
 	}
