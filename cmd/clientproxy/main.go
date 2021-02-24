@@ -28,6 +28,7 @@ func main() {
 	}
 
 	// Create a new DoQ client
+	log.Infof("opening DoQ connection to %s\n", *doqServer)
 	doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
 	if err != nil {
 		log.Fatal(doqClient)
@@ -36,7 +37,7 @@ func main() {
 	defer doqClient.Close()
 
 	// Create the UDP DNS listener
-	log.Debug("creating UDP listener")
+	log.Infof("starting UDP listener on %s\n", *listenAddr)
 	pc, err := net.ListenPacket("udp", *listenAddr)
 	if err != nil {
 		log.Fatal(err)
