@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
@@ -15,181 +16,182 @@ import (
 	"github.com/natesales/doq/internal/doqproto"
 )
 
-const (
-	doqNoError         = 0x00 // No error. This is used when the connection or stream needs to be closed, but there is no error to signal.
-	doqInternalError   = 0x01 // The DoQ implementation encountered an internal error and is incapable of pursuing the transaction or the connection
-	quicMaxIdleTimeout = 5 * time.Minute
-	dnsMinPacketSize   = 12 + 5
-)
-
 // Server stores a DoQ server
 type Server struct {
 	Backend  string
 	Listener quic.Listener
 }
 
+// isQuicConnClosed returns if the given error is representative of a closed QUIC connection
+func isQuicConnClosed(err error) bool {
+	// If there is no error, then the connection must be open
+	if err == nil {
+		return false
+	}
+
+	// Match errors that would indicate a closed connection (NO_ERROR: No recent network activity, EOF)
+	for _, errCase := range []string{"server closed", "Application error 0x0", "EOF", "NO_ERROR"} {
+		if strings.Contains(err.Error(), errCase) {
+			return true
+		}
+	}
+
+	// Default false
+	return false
+}
+
 // New constructs a new Server
-func New(addr string, cert tls.Certificate, backend string, compat bool) (Server, error) {
+func New(listenAddr string, cert tls.Certificate, backend string, tlsCompat bool) (Server, error) {
 	// Select TLS protocols for DoQ
 	var tlsProtos []string
-	if compat {
+	if tlsCompat {
 		tlsProtos = doqproto.TlsProtosCompat
 	} else {
 		tlsProtos = doqproto.TlsProtos
 	}
 
-	// Create the QUIC listener
-	log.Debugln("creating quic listener")
-	listener, err := quic.ListenAddr(addr, &tls.Config{
+	// Create QUIC listener
+	listener, err := quic.ListenAddr(listenAddr, &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		NextProtos:   tlsProtos,
-	}, &quic.Config{MaxIdleTimeout: quicMaxIdleTimeout})
+	}, &quic.Config{MaxIdleTimeout: 5 * time.Second})
 	if err != nil {
-		return Server{}, errors.New("quic listen: " + err.Error())
+		return Server{}, errors.New("could not start QUIC listener")
 	}
 
-	return Server{
-		Backend:  backend,
-		Listener: listener,
-	}, nil // nil error
+	return Server{Listener: listener, Backend: backend}, nil // nil error
 }
 
-// Close closes the server QUIC listener
-func (s Server) Close() error {
-	log.Debugln("closing quic listener")
-	return s.Listener.Close()
-}
-
-// Listen starts the QUIC listener
-func (s Server) Listen() error {
+// Listen starts accepting QUIC connections
+func (s Server) Listen() {
 	// Accept QUIC connections
-	log.Debugln("accepting quic connections")
 	for {
 		session, err := s.Listener.Accept(context.Background())
 		if err != nil {
-			return errors.New("quic listen accept: " + err.Error())
+			log.Info("QUIC accept: %v", err)
+			break
+		} else {
+			// Handle QUIC session in a new goroutine
+			go handleDoQSession(session)
 		}
-		log.Debugf("accepted quic connection from %s\n", session.RemoteAddr())
+	}
+}
 
-		// Handle the client connection in a new goroutine
+// handleDoQSession handles a new DoQ session
+func handleDoQSession(session quic.Session) {
+	for {
+		// Accept client-originated QUIC stream
+		stream, err := session.AcceptStream(context.Background())
+		if err != nil {
+			if isQuicConnClosed(err) {
+				log.Debugf("QUIC connection closed: %v", err)
+			} else {
+				log.Warnf("QUIC stream accept: %v", err)
+			}
+			_ = session.CloseWithError(doqproto.DoqInternalError, "") // Close the session with an internal error message
+			return
+		}
+
+		// Handle QUIC stream (DNS query) in a new goroutine
 		go func() {
-			err := handleClient(session, s.Backend)
+			// The client MUST send the DNS query over the selected stream, and MUST
+			// indicate through the STREAM FIN mechanism that no further data will
+			// be sent on that stream.
+			bytes, err := ioutil.ReadAll(stream) // Ignore error, error handling is done by packet length
+
+			// Check for packet to small
+			if len(bytes) < 17 { // MinDnsPacketSize
+				switch {
+				case err != nil && !isQuicConnClosed(err):
+					log.Infof("QUIC stream read: %v", err)
+				default:
+					log.Info("DNS query length is too small")
+				}
+				return
+			}
+
+			// Unpack the incoming DNS message
+			msg := dns.Msg{}
+			err = msg.Unpack(bytes)
+			if err != nil {
+				log.Info("DNS query unpack: %v", err)
+			}
+
+			// If any message sent on a DoQ connection contains an edns-tcp-keepalive EDNS(0) Option,
+			// this is a fatal error and the recipient of the defective message MUST forcibly abort
+			// the connection immediately.
+			if opt := msg.IsEdns0(); opt != nil {
+				for _, option := range opt.Option {
+					// Check for EDNS TCP keepalive option
+					if option.Option() == dns.EDNS0TCPKEEPALIVE {
+						_ = stream.Close() // Ignore error if we're already trying to forcibly close the stream
+						return
+					}
+				}
+			}
+
+			// Query the backend for our DNS response
+			resp, err := sendUdpDnsMessage(msg, "1.1.1.1:53")
 			if err != nil {
 				log.Warn(err)
 			}
+
+			// Pack the response into a byte slice
+			bytes, err = resp.Pack()
+			if err != nil {
+				log.Warn(err)
+			}
+
+			// Send the byte slice over the open QUIC stream
+			n, err := stream.Write(bytes)
+			if err != nil {
+				log.Warn(err)
+			}
+			if n != len(bytes) {
+				log.Warn("stream write length mismatch")
+			}
+
+			// Ignore error since we're already trying to close the stream
+			_ = stream.Close()
 		}()
 	}
 }
 
-// handleClient handles a DoQ quic.Session
-func handleClient(session quic.Session, backend string) error {
-	// QUIC stream close error
-	var streamCloseErr quic.ErrorCode
-
-	for {
-		stream, err := session.AcceptStream(context.Background())
-		if err != nil { // Close the session if we aren't able to accept the incoming stream
-			_ = session.CloseWithError(doqInternalError, "")
-			return nil
-		}
-		log.Debugf("accepted client stream")
-
-		streamErrChannel := make(chan error)
-
-		// Handle each QUIC stream in a new goroutine
-		go func() {
-			// Read the DNS message
-			log.Debugln("reading from stream")
-			data, err := ioutil.ReadAll(stream)
-			if err != nil {
-				streamCloseErr = doqInternalError
-				streamErrChannel <- errors.New("read query: " + err.Error())
-				return
-			}
-			if len(data) < dnsMinPacketSize {
-				streamCloseErr = doqInternalError
-				streamErrChannel <- errors.New("dns packet too small")
-				return
-			}
-
-			// Unpack the DNS message
-			log.Debugln("unpacking dns message")
-			var dnsMsg dns.Msg
-			err = dnsMsg.Unpack(data)
-			if err != nil {
-				streamCloseErr = doqInternalError
-				streamErrChannel <- errors.New("dns message unpack: " + err.Error())
-				return
-			}
-
-			// If any message sent on a DoQ connection contains an edns-tcp-keepalive EDNS(0) Option,
-			// this is a fatal error and the recipient of the defective message MUST forcibly abort the connection immediately.
-			log.Debugln("checking EDNS0_TCP_KEEPALIVE")
-			opt := dnsMsg.IsEdns0()
-			for _, option := range opt.Option {
-				if option.Option() == dns.EDNS0TCPKEEPALIVE {
-					streamCloseErr = doqInternalError
-					streamErrChannel <- errors.New("client sent EDNS0_TCP_KEEPALIVE")
-					return
-				}
-			}
-
-			// Connect to the DNS backend
-			log.Debugln("dialing udp dns backend")
-			conn, err := net.Dial("udp", backend)
-			if err != nil {
-				streamCloseErr = doqInternalError
-				streamErrChannel <- errors.New("backend connect: " + err.Error())
-				return
-			}
-
-			// Send query to DNS backend
-			log.Debugln("writing query to dns backend")
-			_, err = conn.Write(data)
-			if err != nil {
-				streamCloseErr = doqInternalError
-				streamErrChannel <- errors.New("backend query write: " + err.Error())
-				return
-			}
-
-			// Read the query response from the backend
-			log.Debugln("reading query response")
-			buf := make([]byte, 4096)
-			size, err := conn.Read(buf)
-			if err != nil {
-				streamCloseErr = doqInternalError
-				streamErrChannel <- errors.New("backend query read: " + err.Error())
-				return
-			}
-			buf = buf[:size]
-
-			// Write the response to the QUIC stream
-			log.Debugln("writing dns response to quic stream")
-			_, err = stream.Write(buf)
-			if err != nil {
-				streamCloseErr = doqInternalError
-				streamErrChannel <- errors.New("quic stream write: " + err.Error())
-				return
-			}
-
-			// No error (success)
-			log.Debugln("closing stream")
-			streamCloseErr = doqNoError
-			stream.Close()
-		}()
-
-		// Retrieve the stream error
-		err = <-streamErrChannel
-		if err != nil {
-			log.Debug(err)
-			break // Close the connection
-		}
+func sendUdpDnsMessage(msg dns.Msg, backend string) (dns.Msg, error) {
+	// Pack the DNS message
+	packed, err := msg.Pack()
+	if err != nil {
+		return dns.Msg{}, err
 	}
 
-	// Close the QUIC session, ignoring the close error
-	// if we're already closing the session it doesn't matter if it errors or not
-	_ = session.CloseWithError(streamCloseErr, "")
-	log.Debugf("closed session with %d\n", streamCloseErr)
+	// Connect to the DNS backend
+	log.Debugln("dialing udp dns backend")
+	conn, err := net.Dial("udp", backend)
+	if err != nil {
+		return dns.Msg{}, errors.New("backend connect: " + err.Error())
+	}
 
-	return nil // nil error
+	// Send query to DNS backend
+	log.Debugln("writing query to dns backend")
+	_, err = conn.Write(packed)
+	if err != nil {
+		return dns.Msg{}, errors.New("backend query write: " + err.Error())
+	}
+
+	// Read the query response from the backend
+	log.Debugln("reading query response")
+	buf := make([]byte, 4096)
+	size, err := conn.Read(buf)
+	if err != nil {
+		return dns.Msg{}, errors.New("backend query read: " + err.Error())
+	}
+
+	// Pack the response message
+	var retMsg dns.Msg
+	err = retMsg.Unpack(buf[:size])
+	if err != nil {
+		return dns.Msg{}, err
+	}
+
+	return retMsg, nil // nil error
 }
