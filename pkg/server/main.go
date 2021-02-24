@@ -72,13 +72,13 @@ func (s Server) Listen() {
 			break
 		} else {
 			// Handle QUIC session in a new goroutine
-			go handleDoQSession(session)
+			go handleDoQSession(session, s.Backend)
 		}
 	}
 }
 
 // handleDoQSession handles a new DoQ session
-func handleDoQSession(session quic.Session) {
+func handleDoQSession(session quic.Session, backend string) {
 	for {
 		// Accept client-originated QUIC stream
 		stream, err := session.AcceptStream(context.Background())
@@ -131,7 +131,7 @@ func handleDoQSession(session quic.Session) {
 			}
 
 			// Query the backend for our DNS response
-			resp, err := sendUdpDnsMessage(msg, "1.1.1.1:53")
+			resp, err := sendUdpDnsMessage(msg, backend)
 			if err != nil {
 				log.Warn(err)
 			}
