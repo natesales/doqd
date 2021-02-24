@@ -24,13 +24,22 @@ func main() {
 
 	if *verbose {
 		log.SetLevel(log.DebugLevel)
+		log.Debug("enabled verbose logging")
 	}
+
+	// Create a new DoQ client
+	doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
+	if err != nil {
+		log.Fatal(doqClient)
+		os.Exit(1)
+	}
+	defer doqClient.Close()
 
 	// Create the UDP DNS listener
 	log.Debug("creating UDP listener")
 	pc, err := net.ListenPacket("udp", *listenAddr)
 	if err != nil {
-		return
+		log.Fatal(err)
 	}
 	defer pc.Close()
 
@@ -53,14 +62,6 @@ func main() {
 			log.Warn(err)
 		}
 
-		// Create a new DoQ client
-		// TODO: Fix this, the client should be able to send multiple queries on a connection
-		doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
-		if err != nil {
-			log.Fatal(doqClient)
-			os.Exit(1)
-		}
-
 		// Send the DoQ query
 		log.Debugln("sending DoQ query")
 		resp, err := doqClient.SendQuery(msgIn)
@@ -69,7 +70,6 @@ func main() {
 			os.Exit(1)
 		}
 		log.Debugln("closing doq quic stream")
-		doqClient.Close()
 
 		// Pack the response DNS message to wire format
 		log.Debugln("packing response dns message")
