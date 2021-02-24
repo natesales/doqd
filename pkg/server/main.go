@@ -98,9 +98,8 @@ func handleClient(session quic.Session, backend string) error {
 
 		// Handle each QUIC stream in a new goroutine
 		go func() {
-			defer stream.Close() // Clean up the stream once we're done with it
-
 			// Read the DNS message
+			log.Debugln("reading from stream")
 			data, err := ioutil.ReadAll(stream)
 			if err != nil {
 				streamCloseErr = doqInternalError
@@ -114,6 +113,7 @@ func handleClient(session quic.Session, backend string) error {
 			}
 
 			// Unpack the DNS message
+			log.Debugln("unpacking dns message")
 			var dnsMsg dns.Msg
 			err = dnsMsg.Unpack(data)
 			if err != nil {
@@ -124,6 +124,7 @@ func handleClient(session quic.Session, backend string) error {
 
 			// If any message sent on a DoQ connection contains an edns-tcp-keepalive EDNS(0) Option,
 			// this is a fatal error and the recipient of the defective message MUST forcibly abort the connection immediately.
+			log.Debugln("checking EDNS0_TCP_KEEPALIVE")
 			opt := dnsMsg.IsEdns0()
 			for _, option := range opt.Option {
 				if option.Option() == dns.EDNS0TCPKEEPALIVE {
@@ -134,6 +135,7 @@ func handleClient(session quic.Session, backend string) error {
 			}
 
 			// Connect to the DNS backend
+			log.Debugln("dialing udp dns backend")
 			conn, err := net.Dial("udp", backend)
 			if err != nil {
 				streamCloseErr = doqInternalError
@@ -142,6 +144,7 @@ func handleClient(session quic.Session, backend string) error {
 			}
 
 			// Send query to DNS backend
+			log.Debugln("writing query to dns backend")
 			_, err = conn.Write(data)
 			if err != nil {
 				streamCloseErr = doqInternalError
@@ -150,6 +153,7 @@ func handleClient(session quic.Session, backend string) error {
 			}
 
 			// Read the query response from the backend
+			log.Debugln("reading query response")
 			buf := make([]byte, 4096)
 			size, err := conn.Read(buf)
 			if err != nil {
@@ -160,6 +164,7 @@ func handleClient(session quic.Session, backend string) error {
 			buf = buf[:size]
 
 			// Write the response to the QUIC stream
+			log.Debugln("writing dns response to quic stream")
 			_, err = stream.Write(buf)
 			if err != nil {
 				streamCloseErr = doqInternalError
@@ -168,7 +173,9 @@ func handleClient(session quic.Session, backend string) error {
 			}
 
 			// No error (success)
+			log.Debugln("closing stream")
 			streamCloseErr = doqNoError
+			stream.Close()
 		}()
 
 		// Retrieve the stream error
