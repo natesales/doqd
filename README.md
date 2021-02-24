@@ -16,7 +16,7 @@ well as a UDP-DoQ proxy (`cmd/server`), a CLI client (`cmd/client`), and a DoQ-U
 
 This DoQ implementation is designed to be in conformance with `draft-ietf-dprive-dnsoquic-02`, and therefore only
 announces the `doq-i02` TLS protocol. For experimental interop testing, `doq.Server` and `doq.Client` can be created
-with the `compat` parameter set to true to enable `doq-i02`, `dq`, and `doq` TLS protocols.
+with the `compat` parameter set to true to enable backwards compatibility of TLS protocols.
 
 ### Sysctl tuning
 
