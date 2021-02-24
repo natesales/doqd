@@ -13,7 +13,7 @@ import (
 var version = "dev" // set by build process
 
 var (
-	listenAddr  = flag.String("bind", "[::1]:784", "address to listen on")
+	listenAddr  = flag.String("listen", "[::1]:784", "address to listen on")
 	backend     = flag.String("backend", "[::1]:53", "address of backend (UDP) DNS server")
 	tlsCert     = flag.String("tlsCert", "cert.pem", "TLS certificate file")
 	tlsKey      = flag.String("tlsKey", "key.pem", "TLS key file")
@@ -26,14 +26,18 @@ var (
 func main() {
 	flag.Parse()
 
+	// Evaluate flags
 	if *verbose {
 		log.SetLevel(log.DebugLevel)
+		log.Debugln("enabled debug logging")
 	}
 
 	if *showVersion {
 		log.Printf("doq https://github.com/natesales/doq version %s\n", version)
 		os.Exit(1)
 	}
+
+	log.Debugf("tlsCompat: %v, tlsCert: %s, tlsKey: %s", *tlsCompat, *tlsCert, *tlsKey)
 
 	// Set runtime GOMAXPROCS limit to limit goroutine system resource exhaustion
 	runtime.GOMAXPROCS(*maxProcs)
@@ -45,16 +49,12 @@ func main() {
 	}
 
 	// Create the QUIC listener
-	log.Infof("starting quic listener on %s\n", *listenAddr)
 	doqServer, err := server.New(*listenAddr, cert, *backend, *tlsCompat)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer doqServer.Close() // Clean up the listener once we're done with it
 
 	// Accept QUIC connections
-	err = doqServer.Listen()
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Infof("starting quic listener on quic://%s\n", *listenAddr)
+	doqServer.Listen()
 }
