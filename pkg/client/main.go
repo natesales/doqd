@@ -28,6 +28,7 @@ func New(server string, tlsInsecureSkipVerify bool, compat bool) (Client, error)
 	}
 
 	// Connect to DoQ server
+	log.Debugln("dialing quic server")
 	session, err := quic.DialAddr(server, &tls.Config{
 		InsecureSkipVerify: tlsInsecureSkipVerify,
 		NextProtos:         tlsProtos,
@@ -41,38 +42,44 @@ func New(server string, tlsInsecureSkipVerify bool, compat bool) (Client, error)
 
 // Close closes a Client QUIC connection
 func (c Client) Close() error {
+	log.Debugln("closing quic session")
 	return c.Session.CloseWithError(0, "")
 }
 
 // SendQuery sends query over a new QUIC stream
 func (c Client) SendQuery(message dns.Msg) (dns.Msg, error) {
 	// Open a new QUIC stream
+	log.Debugln("opening new quic stream")
 	stream, err := c.Session.OpenStream()
 	if err != nil {
 		return dns.Msg{}, errors.New("quic stream open: " + err.Error())
 	}
 
 	// Pack the DNS message for transmission
-	wire, err := message.Pack()
+	log.Debugln("packing dns message")
+	packed, err := message.Pack()
 	if err != nil {
 		stream.Close()
 		return dns.Msg{}, errors.New("dns message pack: " + err.Error())
 	}
 
 	// Send the DNS query over QUIC
-	_, err = stream.Write(wire)
+	log.Debugln("writing packed format to the stream")
+	_, err = stream.Write(packed)
 	stream.Close()
 	if err != nil {
 		return dns.Msg{}, errors.New("quic stream write: " + err.Error())
 	}
 
 	// Read the response
+	log.Debugln("reading server response")
 	response, err := ioutil.ReadAll(stream)
 	if err != nil {
 		return dns.Msg{}, errors.New("quic stream read: " + err.Error())
 	}
 
 	// Unpack the DNS message
+	log.Debugln("unpacking response dns message")
 	var msg dns.Msg
 	err = msg.Unpack(response)
 	if err != nil {
