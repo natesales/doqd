@@ -34,7 +34,7 @@ func New(server string, tlsInsecureSkipVerify bool, compat bool) (Client, error)
 		NextProtos:         tlsProtos,
 	}, nil)
 	if err != nil {
-		log.Fatal("failed to connect to the server: %v\n", err)
+		log.Fatalf("failed to connect to the server: %v\n", err)
 	}
 
 	return Client{session}, nil // nil error
