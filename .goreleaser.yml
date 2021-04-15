@@ -1,0 +1,60 @@
+before:
+  hooks:
+    - go mod download
+builds:
+  - id: doqd
+    dir: cmd/server/
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - freebsd
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+  - id: doqc
+    dir: cmd/client/
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - freebsd
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+nfpms:
+  - id: doq
+    package_name: doq
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: Nate Sales
+    homepage: https://natesales.net/
+    maintainer: Nate Sales <nate@natesales.net>
+    description: DNS over QUIC implementation in Go
+    license: GNU GPL-3.0
+    section: utils
+    priority: extra
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: ./doqd
+        dst: /usr/local/bin/doqd
+      - src: ./doqc
+        dst: /usr/local/bin/doqc
+publishers:
+  - name: fury.io
+    ids:
+      - doq
+    dir: "{{ dir .ArtifactPath }}"
+    cmd: curl -s -F package=@{{ .ArtifactName }} https://{{ .Env.FURY_TOKEN }}@push.fury.io/natesales/
