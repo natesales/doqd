@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
@@ -20,24 +19,6 @@ import (
 type Server struct {
 	Upstream string
 	Listener quic.Listener
-}
-
-// isQuicConnClosed returns if the given error is representative of a closed QUIC connection
-func isQuicConnClosed(err error) bool {
-	// If there is no error, then the connection must be open
-	if err == nil {
-		return false
-	}
-
-	// Match errors that would indicate a closed connection (NO_ERROR: No recent network activity, EOF)
-	for _, errCase := range []string{"server closed", "Application error 0x0", "EOF", "NO_ERROR"} {
-		if strings.Contains(err.Error(), errCase) {
-			return true
-		}
-	}
-
-	// Default false
-	return false
 }
 
 // New constructs a new Server
@@ -83,11 +64,7 @@ func handleDoQSession(session quic.Session, upstream string) {
 		// Accept client-originated QUIC stream
 		stream, err := session.AcceptStream(context.Background())
 		if err != nil {
-			if isQuicConnClosed(err) {
-				log.Debugf("QUIC connection closed: %v", err)
-			} else {
-				log.Warnf("QUIC stream accept: %v", err)
-			}
+			log.Warnf("QUIC stream accept: %v", err)
 			_ = session.CloseWithError(doq.InternalError, "") // Close the session with an internal error message
 			return
 		}
@@ -102,7 +79,7 @@ func handleDoQSession(session quic.Session, upstream string) {
 			// Check for packet to small
 			if len(bytes) < 17 { // MinDnsPacketSize
 				switch {
-				case err != nil && !isQuicConnClosed(err):
+				case err != nil:
 					log.Infof("QUIC stream read: %v", err)
 				default:
 					log.Info("DNS query length is too small")
