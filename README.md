@@ -14,13 +14,13 @@ well as a UDP-DoQ proxy (`cmd/server`), a CLI client (`cmd/client`), and a DoQ-U
 
 Start the DoQ server
 ```shell
-➜ sudo ./server -backend 9.9.9.9:53 -tlsCompat -listen localhost:784 -tlsCompat
-INFO[0000] starting quic listener on quic://localhost:784
+➜ sudo ./server -backend 9.9.9.9:53 -tlsCompat -listen localhost:8853 -tlsCompat
+INFO[0000] starting quic listener on quic://localhost:8853
 ```
 
 Query with the DoQ client
 ```
-➜ ./client -server localhost:784 -insecureSkipVerify -queryName natesales.net -queryType A
+➜ ./client -server localhost:8853 -insecureSkipVerify -queryName natesales.net -queryType A
 ;; opcode: QUERY, status: NOERROR, id: 50003
 ;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
@@ -38,8 +38,8 @@ natesales.net.	42341	IN	A	23.141.112.33
 
 Start the client proxy
 ```bash
-➜ ./clientproxy -listen localhost:6000 -server localhost:784 -insecureSkipVerify
-INFO[0000] opening DoQ connection to localhost:784
+➜ ./clientproxy -listen localhost:6000 -server localhost:8853 -insecureSkipVerify
+INFO[0000] opening DoQ connection to localhost:8853
 INFO[0000] starting UDP listener on localhost:6000
 ```
 

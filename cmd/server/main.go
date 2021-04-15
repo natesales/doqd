@@ -13,7 +13,7 @@ import (
 var version = "dev" // set by build process
 
 var (
-	listenAddr  = flag.String("listen", "[::1]:784", "address to listen on")
+	listenAddr  = flag.String("listen", "[::1]:8853", "address to listen on")
 	backend     = flag.String("backend", "[::1]:53", "address of backend (UDP) DNS server")
 	tlsCert     = flag.String("tlsCert", "cert.pem", "TLS certificate file")
 	tlsKey      = flag.String("tlsKey", "key.pem", "TLS key file")

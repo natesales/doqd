@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	server             = flag.String("server", "[::1]:784", "DoQ server")
+	server             = flag.String("server", "[::1]:8853", "DoQ server")
 	insecureSkipVerify = flag.Bool("insecureSkipVerify", false, "skip TLS certificate validation")
 	tlsCompat          = flag.Bool("tlsCompat", false, "enable TLS compatibility mode")
 	dnssec             = flag.Bool("dnssec", true, "send DNSSEC flag")

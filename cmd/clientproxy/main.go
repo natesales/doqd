@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	doqServer             = flag.String("server", "[::1]:784", "DoQ server")
+	doqServer             = flag.String("server", "[::1]:8853", "DoQ server")
 	tlsInsecureSkipVerify = flag.Bool("insecureSkipVerify", false, "skip TLS certificate validation")
 	tlsCompat             = flag.Bool("tlsCompat", false, "enable TLS compatibility mode")
 	listenAddr            = flag.String("listen", "[::1]:5353", "udp listen address")
