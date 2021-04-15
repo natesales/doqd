@@ -1,35 +1,48 @@
 package main
 
 import (
-	"flag"
 	"net"
 	"os"
+	"strings"
 
+	"github.com/jessevdk/go-flags"
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/natesales/doq/pkg/client"
 )
 
-var (
-	doqServer             = flag.String("server", "[::1]:8853", "DoQ server")
-	tlsInsecureSkipVerify = flag.Bool("insecureSkipVerify", false, "skip TLS certificate validation")
-	tlsCompat             = flag.Bool("tlsCompat", false, "enable TLS compatibility mode")
-	listenAddr            = flag.String("listen", "[::1]:5353", "udp listen address")
-	verbose               = flag.Bool("verbose", false, "enable debug logging")
-)
+//goland:noinspection GoUnusedGlobalVariable
+var version = "dev" // set by build process
+
+// CLI Flags
+//goland:noinspection GoUnusedGlobalVariable
+var opts struct {
+	Listen   string `short:"l" long:"listen" description:"Address to listen on" required:"true" default:":53"`
+	Upstream string `short:"u" long:"upstream" description:"Upstream DNS server" required:"true" default:":8853"`
+	Insecure bool   `short:"i" long:"insecure" description:"Ignore TLS certificate validation errors"`
+	Compat   bool   `short:"z" long:"compat" description:"Enable TLS backwards compatibility mode"`
+	Verbose  bool   `short:"v" long:"verbose" description:"Enable verbose logging"`
+}
 
 func main() {
-	flag.Parse()
+	// Parse cli flags
+	_, err := flags.ParseArgs(&opts, os.Args)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Usage") {
+			log.Fatal(err)
+		}
+		os.Exit(1)
+	}
 
-	if *verbose {
+	// Enable debug logging in development releases
+	if opts.Verbose {
 		log.SetLevel(log.DebugLevel)
-		log.Debug("enabled verbose logging")
 	}
 
 	// Create the UDP DNS listener
-	log.Infof("starting UDP listener on %s\n", *listenAddr)
-	pc, err := net.ListenPacket("udp", *listenAddr)
+	log.Infof("starting UDP listener on %s\n", opts.Listen)
+	pc, err := net.ListenPacket("udp", opts.Listen)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,8 +68,8 @@ func main() {
 		}
 
 		// Create a new DoQ client
-		log.Infof("opening DoQ connection to %s\n", *doqServer)
-		doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
+		log.Debugf("opening QUIC connection to %s\n", opts.Upstream)
+		doqClient, err := client.New(opts.Upstream, opts.Insecure, opts.Compat)
 		if err != nil {
 			log.Fatal(doqClient)
 			os.Exit(1)
