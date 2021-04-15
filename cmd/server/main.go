@@ -11,9 +11,11 @@ import (
 	"github.com/natesales/doq/pkg/server"
 )
 
+//goland:noinspection GoUnusedGlobalVariable
 var version = "dev" // set by build process
 
 // CLI Flags
+//goland:noinspection GoUnusedGlobalVariable
 var opts struct {
 	Listen   string `short:"l" long:"listen" description:"Address to listen on" required:"true" default:":8853"`
 	Upstream string `short:"u" long:"upstream" description:"Upstream DNS server" required:"true"`
