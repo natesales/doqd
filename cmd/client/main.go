@@ -60,7 +60,7 @@ func main() {
 		log.Debugf("read %d bytes from buffer", n)
 
 		// Unpack the DNS message
-		log.Debugln("unpacking dns message")
+		log.Debugln("unpacking DNS message")
 		var msgIn dns.Msg
 		err = msgIn.Unpack(buffer)
 		if err != nil {
@@ -82,18 +82,18 @@ func main() {
 			log.Fatal(err)
 			os.Exit(1)
 		}
-		log.Debugln("closing doq quic stream")
+		log.Debugln("closing doq QUIC stream")
 		_ = doqClient.Close()
 
 		// Pack the response DNS message to wire format
-		log.Debugln("packing response dns message")
+		log.Debugln("packing response DNS message")
 		packed, err := resp.Pack()
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// Write response to UDP connection
-		log.Debugln("writing response dns message")
+		log.Debugln("writing response DNS message")
 		_, err = pc.WriteTo(packed, addr)
 		if err != nil {
 			log.Fatal(err)

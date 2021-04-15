@@ -53,6 +53,6 @@ func main() {
 	}
 
 	// Accept QUIC connections
-	log.Infof("starting quic listener on quic://%s\n", opts.Listen)
+	log.Infof("starting QUIC listener on %s\n", opts.Listen)
 	doqServer.Listen()
 }
