@@ -41,7 +41,7 @@ func isQuicConnClosed(err error) bool {
 }
 
 // New constructs a new Server
-func New(listenAddr string, cert tls.Certificate, upstream string, tlsCompat bool) (Server, error) {
+func New(listenAddr string, cert tls.Certificate, upstream string, tlsCompat bool) (*Server, error) {
 	// Select TLS protocols for DoQ
 	var tlsProtos []string
 	if tlsCompat {
@@ -56,19 +56,19 @@ func New(listenAddr string, cert tls.Certificate, upstream string, tlsCompat boo
 		NextProtos:   tlsProtos,
 	}, &quic.Config{MaxIdleTimeout: 5 * time.Second})
 	if err != nil {
-		return Server{}, errors.New("could not start QUIC listener: " + err.Error())
+		return nil, errors.New("could not start QUIC listener: " + err.Error())
 	}
 
-	return Server{Listener: listener, Upstream: upstream}, nil // nil error
+	return &Server{Listener: listener, Upstream: upstream}, nil // nil error
 }
 
 // Listen starts accepting QUIC connections
-func (s Server) Listen() {
+func (s *Server) Listen() {
 	// Accept QUIC connections
 	for {
 		session, err := s.Listener.Accept(context.Background())
 		if err != nil {
-			log.Info("QUIC accept: %v", err)
+			log.Infof("QUIC accept: %v", err)
 			break
 		} else {
 			// Handle QUIC session in a new goroutine
@@ -114,7 +114,7 @@ func handleDoQSession(session quic.Session, upstream string) {
 			msg := dns.Msg{}
 			err = msg.Unpack(bytes)
 			if err != nil {
-				log.Info("DNS query unpack: %v", err)
+				log.Infof("DNS query unpack: %v", err)
 			}
 
 			// If any message sent on a DoQ connection contains an edns-tcp-keepalive EDNS(0) Option,
