@@ -27,15 +27,6 @@ func main() {
 		log.Debug("enabled verbose logging")
 	}
 
-	// Create a new DoQ client
-	log.Infof("opening DoQ connection to %s\n", *doqServer)
-	doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
-	if err != nil {
-		log.Fatal(doqClient)
-		os.Exit(1)
-	}
-	defer doqClient.Close()
-
 	// Create the UDP DNS listener
 	log.Infof("starting UDP listener on %s\n", *listenAddr)
 	pc, err := net.ListenPacket("udp", *listenAddr)
@@ -63,6 +54,14 @@ func main() {
 			log.Warn(err)
 		}
 
+		// Create a new DoQ client
+		log.Infof("opening DoQ connection to %s\n", *doqServer)
+		doqClient, err := client.New(*doqServer, *tlsInsecureSkipVerify, *tlsCompat)
+		if err != nil {
+			log.Fatal(doqClient)
+			os.Exit(1)
+		}
+
 		// Send the DoQ query
 		log.Debugln("sending DoQ query")
 		resp, err := doqClient.SendQuery(msgIn)
@@ -71,6 +70,7 @@ func main() {
 			os.Exit(1)
 		}
 		log.Debugln("closing doq quic stream")
+		_ = doqClient.Close()
 
 		// Pack the response DNS message to wire format
 		log.Debugln("packing response dns message")
