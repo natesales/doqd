@@ -6,79 +6,47 @@
 DNS over QUIC implementation in Go
 ([draft-ietf-dprive-dnsoquic-02](https://datatracker.ietf.org/doc/draft-ietf-dprive-dnsoquic/?include_text=1))
 
-The `pkg` directory contains a DoQ client and server implementation in conformance
-with [draft-ietf-dprive-dnsoquic-02](https://datatracker.ietf.org/doc/draft-ietf-dprive-dnsoquic/?include_text=1), as
-well as a UDP-DoQ proxy (`cmd/server`), a CLI client (`cmd/client`), and a DoQ-UDP proxy (`cmd/clientproxy`).
+This repo contains a client and server in conformance with [draft-ietf-dprive-dnsoquic-02](https://datatracker.ietf.org/doc/draft-ietf-dprive-dnsoquic/?include_text=1). Each acts as a proxy for queries from DoQ to plain DNS and vice versa.
 
 ### Quickstart
 
-Start the DoQ server
-```shell
-➜ sudo ./server -backend 9.9.9.9:53 -tlsCompat -listen localhost:8853 -tlsCompat
-INFO[0000] starting quic listener on quic://localhost:8853
-```
+Start the server proxy
 
-Query with the DoQ client
-```
-➜ ./client -server localhost:8853 -insecureSkipVerify -queryName natesales.net -queryType A
-;; opcode: QUERY, status: NOERROR, id: 50003
-;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
-
-;; QUESTION SECTION:
-;natesales.net.	IN	 A
-
-;; ANSWER SECTION:
-natesales.net.	42341	IN	A	23.141.112.33
-
-;; ADDITIONAL SECTION:
-
-;; OPT PSEUDOSECTION:
-; EDNS: version 0; flags: do; udp: 1232
+```bash
+sudo doqd --cert cert.pem --key key.pem --upstream localhost:53 --listen localhost:8853
+INFO[0000] starting QUIC listener on localhost:8853
 ```
 
 Start the client proxy
+
 ```bash
-➜ ./clientproxy -listen localhost:6000 -server localhost:8853 -insecureSkipVerify
-INFO[0000] opening DoQ connection to localhost:8853
-INFO[0000] starting UDP listener on localhost:6000
+sudo doqc --listen localhost:53 --upstream localhost:8853
+INFO[0000] starting UDP listener on localhost:53
 ```
 
 Query with dig through the client proxy
+
 ```bash
-➜ dig natesales.net @localhost -p 6000
-; <<>> DiG 9.11.5-P4-5.1+deb10u3-Debian <<>> natesales.net @localhost -p 6000
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 34905
-;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+dig +short natesales.net @localhost
+23.141.112.33
+```
 
-;; OPT PSEUDOSECTION:
-; EDNS: version: 0, flags:; udp: 1232
-;; QUESTION SECTION:
-;natesales.net.			IN	A
+Query directly with the [q DNS client](https://github.com/natesales/q):
 
-;; ANSWER SECTION:
-natesales.net.		41624	IN	A	23.141.112.33
-
-;; Query time: 24 msec
-;; SERVER: 127.0.0.1#6000(127.0.0.1)
-;; WHEN: Wed Feb 24 00:07:45 PST 2021
-;; MSG SIZE  rcvd: 71
+```bash
+q A natesales.net @quic://localhost:8853
+natesales.net. 9h40m58s A 23.141.112.33
 ```
 
 ### Interoperability
 
-This DoQ implementation is designed to be in conformance with `draft-ietf-dprive-dnsoquic-02`, and therefore only
-announces the `doq-i02` TLS protocol. For experimental interop testing, `doq.Server` and `doq.Client` can be created
-with the `compat` parameter set to true to enable backwards compatibility of TLS protocols.
+This DoQ implementation is designed to be in conformance with `draft-ietf-dprive-dnsoquic-02`, and therefore only announces the `doq-i02` TLS protocol. For experimental interop testing, `doq.Server` and `doq.Client` can be created with the `compat` parameter set to true to enable backwards compatibility of TLS protocols.
 
 ### Sysctl tuning
 
-As per the [quic-go wiki](https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size), quic-go recommends
-increasing the maximum UDP receive buffer size and will show a warning if this value is too small. For DNS queries where
-the packet sizes are small to begin with, increasing the value won't yield a performance improvement.
+As per the [quic-go wiki](https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size), quic-go recommends increasing the maximum UDP receive buffer size and will show a warning if this value is too small. For DNS queries where the packet sizes are small to begin with, increasing the value won't yield a performance improvement so this is up to the operator.
 
-### TLS
+### Local TLS
 
 QUIC requires a TLS certificate. OpenSSL can be used to generate a self-signed local development cert:
 
