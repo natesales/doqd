@@ -2,59 +2,55 @@ package main
 
 import (
 	"crypto/tls"
-	"flag"
 	"os"
-	"runtime"
+	"strings"
+
+	"github.com/jessevdk/go-flags"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/natesales/doq/pkg/server"
-	log "github.com/sirupsen/logrus"
 )
 
 var version = "dev" // set by build process
 
-var (
-	listenAddr  = flag.String("listen", "[::1]:8853", "address to listen on")
-	backend     = flag.String("backend", "[::1]:53", "address of backend (UDP) DNS server")
-	tlsCert     = flag.String("tlsCert", "cert.pem", "TLS certificate file")
-	tlsKey      = flag.String("tlsKey", "key.pem", "TLS key file")
-	tlsCompat   = flag.Bool("tlsCompat", false, "enable TLS compatibility mode")
-	maxProcs    = flag.Int("maxProcs", 1, "GOMAXPROCS")
-	verbose     = flag.Bool("verbose", false, "enable debug logging")
-	showVersion = flag.Bool("version", false, "show version")
-)
+// CLI Flags
+var opts struct {
+	Listen   string `short:"l" long:"listen" description:"Address to listen on" required:"true" default:":8853"`
+	Upstream string `short:"u" long:"upstream" description:"Upstream DNS server" required:"true"`
+	Cert     string `short:"c" long:"cert" description:"TLS certificate file" required:"true"`
+	Key      string `short:"k" long:"key" description:"TLS private key file" required:"true"`
+	Compat   bool   `short:"z" long:"compat" description:"Enable TLS backwards compatibility mode"`
+	Verbose  bool   `short:"v" long:"verbose" description:"Enable verbose logging"`
+}
 
 func main() {
-	flag.Parse()
-
-	// Evaluate flags
-	if *verbose {
-		log.SetLevel(log.DebugLevel)
-		log.Debugln("enabled debug logging")
-	}
-
-	if *showVersion {
-		log.Printf("doq https://github.com/natesales/doq version %s\n", version)
+	// Parse cli flags
+	_, err := flags.ParseArgs(&opts, os.Args)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Usage") {
+			log.Fatal(err)
+		}
 		os.Exit(1)
 	}
 
-	log.Debugf("tlsCompat: %v, tlsCert: %s, tlsKey: %s", *tlsCompat, *tlsCert, *tlsKey)
+	// Enable debug logging in development releases
+	if opts.Verbose {
+		log.SetLevel(log.DebugLevel)
+	}
 
-	// Set runtime GOMAXPROCS limit to limit goroutine system resource exhaustion
-	runtime.GOMAXPROCS(*maxProcs)
-
-	// Parse the TLS x509 keypair
-	cert, err := tls.LoadX509KeyPair(*tlsCert, *tlsKey)
+	// Load the keypair for TLS
+	cert, err := tls.LoadX509KeyPair(opts.Cert, opts.Key)
 	if err != nil {
 		log.Fatalf("load TLS x509 cert: %s\n", err)
 	}
 
 	// Create the QUIC listener
-	doqServer, err := server.New(*listenAddr, cert, *backend, *tlsCompat)
+	doqServer, err := server.New(opts.Listen, cert, opts.Upstream, opts.Compat)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Accept QUIC connections
-	log.Infof("starting quic listener on quic://%s\n", *listenAddr)
+	log.Infof("starting quic listener on quic://%s\n", opts.Listen)
 	doqServer.Listen()
 }
