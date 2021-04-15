@@ -47,11 +47,6 @@ nfpms:
     formats:
       - deb
       - rpm
-    contents:
-      - src: ./doqd
-        dst: /usr/local/bin/doqd
-      - src: ./doqc
-        dst: /usr/local/bin/doqc
 publishers:
   - name: fury.io
     ids:
