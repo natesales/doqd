@@ -25,11 +25,13 @@ func TestServer(t *testing.T) {
 	// Start the server
 	go doqServer.Listen()
 
+	// Create the DoQ client
 	doqClient, err := client.New("localhost:8853", true, false)
 	if err != nil {
 		t.Error(err)
 	}
 
+	// Create a test DNS query
 	req := dns.Msg{
 		Question: []dns.Question{{
 			Name:   dns.Fqdn("example.com"),
@@ -39,6 +41,7 @@ func TestServer(t *testing.T) {
 	}
 	req.RecursionDesired = true
 
+	// Send the query
 	_, err = doqClient.SendQuery(req)
 	if err != nil {
 		t.Error(err)
