@@ -18,7 +18,7 @@ import (
 
 // Server stores a DoQ server
 type Server struct {
-	Backend  string
+	Upstream string
 	Listener quic.Listener
 }
 
@@ -41,7 +41,7 @@ func isQuicConnClosed(err error) bool {
 }
 
 // New constructs a new Server
-func New(listenAddr string, cert tls.Certificate, backend string, tlsCompat bool) (Server, error) {
+func New(listenAddr string, cert tls.Certificate, upstream string, tlsCompat bool) (Server, error) {
 	// Select TLS protocols for DoQ
 	var tlsProtos []string
 	if tlsCompat {
@@ -59,7 +59,7 @@ func New(listenAddr string, cert tls.Certificate, backend string, tlsCompat bool
 		return Server{}, errors.New("could not start QUIC listener: " + err.Error())
 	}
 
-	return Server{Listener: listener, Backend: backend}, nil // nil error
+	return Server{Listener: listener, Upstream: upstream}, nil // nil error
 }
 
 // Listen starts accepting QUIC connections
@@ -72,13 +72,13 @@ func (s Server) Listen() {
 			break
 		} else {
 			// Handle QUIC session in a new goroutine
-			go handleDoQSession(session, s.Backend)
+			go handleDoQSession(session, s.Upstream)
 		}
 	}
 }
 
 // handleDoQSession handles a new DoQ session
-func handleDoQSession(session quic.Session, backend string) {
+func handleDoQSession(session quic.Session, upstream string) {
 	for {
 		// Accept client-originated QUIC stream
 		stream, err := session.AcceptStream(context.Background())
@@ -130,8 +130,8 @@ func handleDoQSession(session quic.Session, backend string) {
 				}
 			}
 
-			// Query the backend for our DNS response
-			resp, err := sendUdpDnsMessage(msg, backend)
+			// Query the upstream for our DNS response
+			resp, err := sendUdpDnsMessage(msg, upstream)
 			if err != nil {
 				log.Warn(err)
 			}
@@ -157,33 +157,33 @@ func handleDoQSession(session quic.Session, backend string) {
 	}
 }
 
-func sendUdpDnsMessage(msg dns.Msg, backend string) (dns.Msg, error) {
+func sendUdpDnsMessage(msg dns.Msg, upstream string) (dns.Msg, error) {
 	// Pack the DNS message
 	packed, err := msg.Pack()
 	if err != nil {
 		return dns.Msg{}, err
 	}
 
-	// Connect to the DNS backend
-	log.Debugln("dialing udp dns backend")
-	conn, err := net.Dial("udp", backend)
+	// Connect to the DNS upstream
+	log.Debugln("dialing udp dns upstream")
+	conn, err := net.Dial("udp", upstream)
 	if err != nil {
-		return dns.Msg{}, errors.New("backend connect: " + err.Error())
+		return dns.Msg{}, errors.New("upstream connect: " + err.Error())
 	}
 
-	// Send query to DNS backend
-	log.Debugln("writing query to dns backend")
+	// Send query to DNS upstream
+	log.Debugln("writing query to dns upstream")
 	_, err = conn.Write(packed)
 	if err != nil {
-		return dns.Msg{}, errors.New("backend query write: " + err.Error())
+		return dns.Msg{}, errors.New("upstream query write: " + err.Error())
 	}
 
-	// Read the query response from the backend
+	// Read the query response from the upstream
 	log.Debugln("reading query response")
 	buf := make([]byte, 4096)
 	size, err := conn.Read(buf)
 	if err != nil {
-		return dns.Msg{}, errors.New("backend query read: " + err.Error())
+		return dns.Msg{}, errors.New("upstream query read: " + err.Error())
 	}
 
 	// Pack the response message
