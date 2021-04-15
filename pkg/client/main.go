@@ -9,7 +9,7 @@ import (
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/natesales/doq/internal/doqproto"
+	"github.com/natesales/doq"
 )
 
 // Client stores a DoQ client
@@ -22,9 +22,9 @@ func New(server string, tlsInsecureSkipVerify bool, compat bool) (Client, error)
 	// Select TLS protocols for DoQ
 	var tlsProtos []string
 	if compat {
-		tlsProtos = doqproto.TlsProtosCompat
+		tlsProtos = doq.TlsProtosCompat
 	} else {
-		tlsProtos = doqproto.TlsProtos
+		tlsProtos = doq.TlsProtos
 	}
 
 	// Connect to DoQ server
@@ -59,14 +59,14 @@ func (c Client) SendQuery(message dns.Msg) (dns.Msg, error) {
 	log.Debugln("packing dns message")
 	packed, err := message.Pack()
 	if err != nil {
-		stream.Close()
+		_ = stream.Close()
 		return dns.Msg{}, errors.New("dns message pack: " + err.Error())
 	}
 
 	// Send the DNS query over QUIC
 	log.Debugln("writing packed format to the stream")
 	_, err = stream.Write(packed)
-	stream.Close()
+	_ = stream.Close()
 	if err != nil {
 		return dns.Msg{}, errors.New("quic stream write: " + err.Error())
 	}

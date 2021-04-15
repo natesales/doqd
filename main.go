@@ -1,4 +1,4 @@
-package doqproto
+package doq
 
 // Only implementations of the final, published RFC can identify
 // themselves as "doq". Until such an RFC exists, implementations MUST
@@ -15,6 +15,6 @@ var TlsProtosCompat = []string{"doq-i02", "doq-i01", "doq-i00", "doq", "dq"}
 
 // Errors
 const (
-	DoqNoError       = 0x00 // No error. This is used when the connection or stream needs to be closed, but there is no error to signal.
-	DoqInternalError = 0x01 // The DoQ implementation encountered an internal error and is incapable of pursuing the transaction or the connection
+	NoError       = 0x00 // No error. This is used when the connection or stream needs to be closed, but there is no error to signal.
+	InternalError = 0x01 // The DoQ implementation encountered an internal error and is incapable of pursuing the transaction or the connection
 )

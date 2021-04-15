@@ -13,7 +13,7 @@ import (
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/natesales/doq/internal/doqproto"
+	"github.com/natesales/doq"
 )
 
 // Server stores a DoQ server
@@ -45,9 +45,9 @@ func New(listenAddr string, cert tls.Certificate, upstream string, tlsCompat boo
 	// Select TLS protocols for DoQ
 	var tlsProtos []string
 	if tlsCompat {
-		tlsProtos = doqproto.TlsProtosCompat
+		tlsProtos = doq.TlsProtosCompat
 	} else {
-		tlsProtos = doqproto.TlsProtos
+		tlsProtos = doq.TlsProtos
 	}
 
 	// Create QUIC listener
@@ -88,7 +88,7 @@ func handleDoQSession(session quic.Session, upstream string) {
 			} else {
 				log.Warnf("QUIC stream accept: %v", err)
 			}
-			_ = session.CloseWithError(doqproto.DoqInternalError, "") // Close the session with an internal error message
+			_ = session.CloseWithError(doq.InternalError, "") // Close the session with an internal error message
 			return
 		}
 
