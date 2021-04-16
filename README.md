@@ -1,4 +1,4 @@
-# doq
+# doqd
 
 [![Go Report](https://goreportcard.com/badge/github.com/natesales/doq?style=for-the-badge)](https://goreportcard.com/report/github.com/natesales/doq)
 [![License](https://img.shields.io/github/license/natesales/doq?style=for-the-badge)](https://raw.githubusercontent.com/natesales/doq/main/LICENSE)
