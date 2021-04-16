@@ -42,7 +42,7 @@ natesales.net. 9h40m58s A 23.141.112.33
 
 This DoQ implementation is designed to be in conformance with `draft-ietf-dprive-dnsoquic-02`, and therefore only announces the `doq-i02` TLS protocol. For experimental interop testing, `doq.Server` and `doq.Client` can be created with the `compat` parameter set to true to enable backwards compatibility of TLS protocols.
 
-### Sysctl tuning
+### Tuning
 
 As per the [quic-go wiki](https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size), quic-go recommends increasing the maximum UDP receive buffer size and will show a warning if this value is too small. For DNS queries where the packet sizes are small to begin with, increasing the value won't yield a performance improvement so this is up to the operator.
 
