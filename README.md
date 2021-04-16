@@ -13,14 +13,14 @@ This repo contains a client and server in conformance with [draft-ietf-dprive-dn
 Start the server proxy
 
 ```bash
-sudo doqd --cert cert.pem --key key.pem --upstream localhost:53 --listen localhost:8853
+doqd server --cert cert.pem --key key.pem --upstream localhost:53 --listen localhost:8853
 INFO[0000] starting QUIC listener on localhost:8853
 ```
 
 Start the client proxy
 
 ```bash
-sudo doqc --listen localhost:53 --upstream localhost:8853
+doqd client --listen localhost:53 --upstream localhost:8853
 INFO[0000] starting UDP listener on localhost:53
 ```
 
