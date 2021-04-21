@@ -40,7 +40,7 @@ natesales.net. 9h40m58s A 23.141.112.33
 
 ### Interoperability
 
-This DoQ implementation is designed to be in conformance with `draft-ietf-dprive-dnsoquic-02`, and therefore only announces the `doq-i02` TLS protocol. For experimental interop testing, `doq.Server` and `doq.Client` can be created with the `compat` parameter set to true to enable backwards compatibility of TLS protocols.
+This DoQ implementation is designed to be in conformance with `draft-ietf-dprive-dnsoquic-02`, and therefore only offers the `doq-i02` TLS ALPN token. For experimental interop testing, `doq.Server` and `doq.Client` can be created with the `compat` parameter set to true to enable compatibility of other ALPN tokens.
 
 ### Tuning
 
