@@ -36,7 +36,7 @@ func (s *ServerCommand) Execute(args []string) error {
 		log.Fatalf("load TLS x509 cert: %s\n", err)
 	}
 
-	log.Debugln("listen addresses: %+v", s.Listen)
+	log.Debugf("listen addresses: %+v", s.Listen)
 
 	for _, listenAddr := range s.Listen {
 		// Create the QUIC listener
