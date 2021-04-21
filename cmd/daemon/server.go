@@ -46,7 +46,7 @@ func (s *ServerCommand) Execute(args []string) error {
 		}
 
 		// Accept QUIC connections
-		log.Infof("starting QUIC listener on %s\n", s.Listen)
+		log.Infof("starting QUIC listener on %s\n", listenAddr)
 		go doqServer.Listen()
 	}
 
