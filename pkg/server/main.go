@@ -107,6 +107,19 @@ func handleDoQSession(session quic.Session, upstream string) {
 				}
 			}
 
+			// https://datatracker.ietf.org/doc/html/draft-ietf-dprive-dnsoquic-02#section-6.4
+			// When sending queries over a QUIC connection, the DNS Message ID MUST be set to zero.
+			id := msg.Id
+			var reply *dns.Msg
+			msg.Id = 0
+			defer func() {
+				// Restore the original ID to not break compatibility with proxies
+				msg.Id = id
+				if reply != nil {
+					reply.Id = id
+				}
+			}()
+
 			// Query the upstream for our DNS response
 			resp, err := sendUdpDnsMessage(msg, upstream)
 			if err != nil {
