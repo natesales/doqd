@@ -12,7 +12,7 @@ import (
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/natesales/doq"
+	"github.com/natesales/doqd"
 )
 
 // Server stores a DoQ server

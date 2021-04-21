@@ -6,7 +6,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/natesales/doq/pkg/client"
+	"github.com/natesales/doqd/pkg/client"
 )
 
 func TestServer(t *testing.T) {

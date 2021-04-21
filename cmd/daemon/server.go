@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/natesales/doq/pkg/server"
+	"github.com/natesales/doqd/pkg/server"
 )
 
 type ServerCommand struct {

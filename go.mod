@@ -1,4 +1,4 @@
-module github.com/natesales/doq
+module github.com/natesales/doqd
 
 go 1.16
 

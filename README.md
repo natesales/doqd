@@ -1,7 +1,7 @@
 # doqd
 
-[![Go Report](https://goreportcard.com/badge/github.com/natesales/doq?style=for-the-badge)](https://goreportcard.com/report/github.com/natesales/doq)
-[![License](https://img.shields.io/github/license/natesales/doq?style=for-the-badge)](https://raw.githubusercontent.com/natesales/doq/main/LICENSE)
+[![Go Report](https://goreportcard.com/badge/github.com/natesales/doqd?style=for-the-badge)](https://goreportcard.com/report/github.com/natesales/doqd)
+[![License](https://img.shields.io/github/license/natesales/doqd?style=for-the-badge)](https://raw.githubusercontent.com/natesales/doqd/main/LICENSE)
 
 DNS over QUIC implementation in Go
 ([draft-ietf-dprive-dnsoquic-02](https://datatracker.ietf.org/doc/draft-ietf-dprive-dnsoquic/?include_text=1))
