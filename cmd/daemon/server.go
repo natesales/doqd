@@ -2,19 +2,20 @@ package main
 
 import (
 	"crypto/tls"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/natesales/doqd/pkg/server"
+	log "github.com/sirupsen/logrus"
 )
 
 type ServerCommand struct {
-	Listen   []string `short:"l" long:"listen" description:"Address to listen on" required:"true"`
-	Upstream string   `short:"u" long:"upstream" description:"Upstream DNS server" required:"true"`
-	Cert     string   `short:"c" long:"cert" description:"TLS certificate file" required:"true"`
-	Key      string   `short:"k" long:"key" description:"TLS private key file" required:"true"`
+	Listen      []string `short:"l" long:"listen" description:"Address to listen on" required:"true"`
+	MetricsAddr string   `short:"m" long:"metrics" description:"Prometheus meterics listen address" required:"false"`
+	Upstream    string   `short:"u" long:"upstream" description:"Upstream DNS server" required:"true"`
+	Cert        string   `short:"c" long:"cert" description:"TLS certificate file" required:"true"`
+	Key         string   `short:"k" long:"key" description:"TLS private key file" required:"true"`
 }
 
 var serverCommand ServerCommand
@@ -36,8 +37,13 @@ func (s *ServerCommand) Execute(args []string) error {
 		log.Fatalf("load TLS x509 cert: %s\n", err)
 	}
 
-	log.Debugf("listen addresses: %+v", s.Listen)
+	// Start metrics server
+	go func() {
+		log.Infof("Starting metrics server on %s", s.MetricsAddr)
+		log.Fatal(server.MetricsListen(s.MetricsAddr))
+	}()
 
+	log.Debugf("Listening on %+v", s.Listen)
 	for _, listenAddr := range s.Listen {
 		// Create the QUIC listener
 		doqServer, err := server.New(listenAddr, cert, s.Upstream, options.Compat)
@@ -46,7 +52,7 @@ func (s *ServerCommand) Execute(args []string) error {
 		}
 
 		// Accept QUIC connections
-		log.Infof("starting QUIC listener on %s\n", listenAddr)
+		log.Infof("Starting QUIC listener on %s\n", listenAddr)
 		go doqServer.Listen()
 	}
 

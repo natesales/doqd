@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/miekg/dns"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/natesales/doqd/pkg/client"
 )
@@ -12,24 +13,18 @@ import (
 func TestServer(t *testing.T) {
 	// Load the keypair for TLS
 	cert, err := tls.LoadX509KeyPair("/tmp/cert.pem", "/tmp/key.pem")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 
 	// Create the QUIC listener
 	doqServer, err := New("localhost:8853", cert, "1.1.1.1:53", false)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 
 	// Start the server
 	go doqServer.Listen()
 
 	// Create the DoQ client
 	doqClient, err := client.New("localhost:8853", true, false)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 
 	// Create a test DNS query
 	req := dns.Msg{
@@ -43,7 +38,5 @@ func TestServer(t *testing.T) {
 
 	// Send the query
 	_, err = doqClient.SendQuery(req)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 }

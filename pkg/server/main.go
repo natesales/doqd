@@ -71,6 +71,9 @@ func handleDoQSession(session quic.Session, upstream string) {
 
 		// Handle QUIC stream (DNS query) in a new goroutine
 		go func() {
+			// Increment query metric
+			metricQueries.Inc()
+
 			// The client MUST send the DNS query over the selected stream, and MUST
 			// indicate through the STREAM FIN mechanism that no further data will
 			// be sent on that stream.
@@ -123,8 +126,12 @@ func handleDoQSession(session quic.Session, upstream string) {
 			// Query the upstream for our DNS response
 			resp, err := sendUdpDnsMessage(msg, upstream)
 			if err != nil {
+				metricUpstreamErrors.Inc()
 				log.Warn(err)
 			}
+
+			// Increment valid queries metric
+			metricValidQueries.Inc()
 
 			// Pack the response into a byte slice
 			bytes, err = resp.Pack()
