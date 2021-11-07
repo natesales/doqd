@@ -42,3 +42,23 @@ publishers:
       - doqd
     dir: "{{ dir .ArtifactPath }}"
     cmd: curl -s -F package=@{{ .ArtifactName }} https://{{ .Env.FURY_TOKEN }}@push.fury.io/natesales/
+dockers:
+  - image_templates: ["ghcr.io/natesales/doqd:{{ .Version }}-amd64"]
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - --platform=linux/amd64
+      - --label=org.opencontainers.image.title=doqd
+      - --label=org.opencontainers.image.description=DNS over QUIC implementation in Go
+      - --label=org.opencontainers.image.url=https://github.com/natesales/doqd
+      - --label=org.opencontainers.image.source=https://github.com/natesales/doqd
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+docker_manifests:
+  - name_template: ghcr.io/natesales/doqd:{{ .Version }}
+    image_templates:
+      - ghcr.io/natesales/doqd:{{ .Version }}-amd64
+  - name_template: ghcr.io/natesales/doqd:latest
+    image_templates:
+      - ghcr.io/natesales/doqd:{{ .Version }}-amd64
