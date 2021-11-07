@@ -51,5 +51,5 @@ As per the [quic-go wiki](https://github.com/lucas-clemente/quic-go/wiki/UDP-Rec
 QUIC requires a TLS certificate. OpenSSL can be used to generate a self-signed local development cert:
 
 ```bash
-openssl req -x509 -newkey rsa:4096 -sha256 -days 356 -nodes -keyout key.pem -out cert.pem -subj "/CN=localhost"
+openssl req -x509 -newkey rsa:4096 -sha256 -days 356 -nodes -keyout /tmp/key.pem -out /tmp/cert.pem -subj "/CN=localhost"
 ```
